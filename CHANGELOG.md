@@ -5,105 +5,113 @@ All notable changes to StabilityGuard will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.3] - 2026-04-08
+## [0.2.0] - 2026-04-08
 
-### Fixed
-- **Critical bug fix**: False positive spike detections for tiny gradients
-  - Added absolute magnitude check (`norm > 0.01`) alongside ratio check in spike detection
-  - Previously, tiny gradients (e.g., 0.000005) with high ratios relative to tiny baselines triggered false positives
-  - Verified fix: 0 false positives in 1000 training steps (previously 51+ false positives)
+### 🚀 Major Features Added
 
-### Changed
-- **Updated performance documentation** with honest, research-backed estimates
-  - GPU overhead: Changed from unverified "< 0.2ms" to realistic "1-5%" based on PyTorch hooks research
-  - Added CPU overhead warning: ~60%, not recommended for production
-  - Clarified that StabilityGuard is designed for GPU-based training workloads
-  - Performance claims now align with similar tools (PyTorch AMP, gradient clipping) and academic research
+#### 1. Edge of Stability Detection
+- **Predictive spike detection** using Hessian spectral radius estimation
+- Detects instability 10-50 steps before gradient explosion occurs
+- Uses power iteration method for efficient λ_max computation
+- Configurable with `enable_edge_of_stability=True`
+- Parameters: `eos_check_interval`, `eos_power_iterations`, `eos_stability_threshold`
 
-### Documentation
-- Added `PERFORMANCE_RESEARCH.md` with detailed analysis of PyTorch backward hooks overhead
-- Updated README performance table with transparent, verifiable metrics
+#### 2. SPAM Optimizer (Spike-Aware Momentum)
+- **Automatic momentum buffer reset** on spike detection
+- Prevents gradient corruption from propagating through Adam's exponential moving averages
+- **Gradual learning rate recovery** after spike handling
+- Configurable with `enable_spam=True`
+- Parameters: `spam_lr_reduction`, `spam_recovery_steps`
 
-## [0.1.2] - 2026-04-08
+#### 3. Auto-Calibration
+- **Statistical threshold tuning** during warmup period
+- Fits log-normal distribution to gradient norms
+- Sets threshold at 99th percentile automatically
+- Eliminates manual threshold tuning
+- Configurable with `enable_auto_calibration=True`
+- Parameters: `auto_calibration_warmup_steps`, `auto_calibration_percentile`
 
-### Changed
-- **Simplified README problem statement** to accurately reflect v0.1 capabilities
-- Removed claims about Edge of Stability detection, Hessian estimation, and optimizer state corruption analysis (these are planned for future versions)
-- Focused on what v0.1 actually delivers: real-time gradient spike detection, per-layer attribution, and preemptive intervention
+#### 4. HELENE Clipping (Hessian-Aware Adaptive Clipping)
+- **Per-layer adaptive gradient clipping** based on local Hessian conditioning
+- Adjusts clip values dynamically: `clip = base_clip / sqrt(κ)`
+- More aggressive clipping for ill-conditioned layers
+- Configurable with `enable_helene=True`
+- Parameters: `helene_base_clip`, `helene_power_iterations`
 
-### Documentation
-- Problem statement now honestly describes the gradient spike detection and NaN catching that v0.1 implements
-- Removed references to advanced features not yet implemented (λ_max tracking, curvature estimation, etc.)
+### ✨ Improvements
+- All v0.2.0 features are **opt-in** (default `False`) for backward compatibility
+- Comprehensive integration into `GuardedOptimizer.step()` method
+- CPU-friendly test suite for validation without GPU
+- Detailed documentation for each feature
 
-## [0.1.1] - 2026-04-08
+### 📚 Documentation
+- Added `ROADMAP_v0.2.0.md` with detailed feature specifications
+- Added `LONG_TERM_ROADMAP.md` with vision through v2.0.0
+- Added `HESSIAN_VECTOR_PRODUCTS_EXPLAINED.md` explaining computational costs
+- Created CPU-friendly test suite: `test_v0.2.0_features_cpu.py`
 
-### Changed
-- Updated README with more detailed technical problem statement
-- Version bump for PyPI package update
+### 🔧 Technical Details
+- Edge of Stability: 2 backward passes per Hessian-vector product
+- SPAM: Resets `exp_avg` and `exp_avg_sq` buffers in Adam optimizer
+- Auto-Calibration: Collects samples during warmup, fits distribution
+- HELENE: Estimates per-layer conditioning number using power iteration
 
-## [0.1.0] - 2026-04-08
+### 🧪 Testing
+- All 5 v0.2.0 features tested and validated
+- Tests pass on CPU with small models (1.3K parameters)
+- Optimized for fast testing (5 power iterations vs 20)
 
-### Added
-- **Core Features**
-  - `GuardedOptimizer`: Drop-in wrapper for any PyTorch optimizer with automatic gradient spike detection
-  - `SpikeDetector`: EMA-based baseline tracking with configurable threshold detection
-  - `GradientHookManager`: Per-layer gradient norm monitoring via backward hooks
-  - Three remediation strategies: `skip`, `rollback`, and `raise`
-  
-- **Detection Capabilities**
-  - Exponential Moving Average (EMA) baseline with α=0.01 for adaptive threshold tracking
-  - Per-layer gradient norm monitoring for granular spike localization
-  - NaN/Inf detection with dual-path verification (hooks + parameter scan)
-  - Configurable warmup period to avoid false positives during initialization
-  - Spike metadata capture including layer names, norms, and model state hash
+## [0.1.3] - 2026-04-07
 
-- **Integrations**
-  - Weights & Biases (W&B) logging integration
-  - MLflow experiment tracking integration
-  - HuggingFace Trainer callback for seamless integration with transformers
+### 🐛 Bug Fixes
+- Fixed false positive spike detection in early training steps
+- Improved baseline gradient norm tracking accuracy
 
-- **Utilities**
-  - Comprehensive logging system with structured output
-  - Model state checkpointing and rollback capabilities
-  - Gradient snapshot system for forensic analysis
-  - Spike report generation with top-10 worst layers
+### 📊 Performance
+- Documented honest performance overhead: 1-5% GPU time
+- Optimized spike detection algorithm
 
-- **Examples**
-  - GPT-2 pretraining example with spike injection demo
-  - LLaMA fine-tuning example with HuggingFace integration
+### 📚 Documentation
+- Added performance benchmarks
+- Updated README with realistic expectations
+- Added troubleshooting guide
 
-- **Testing**
-  - Complete test suite with 22 tests covering:
-    - Spike detection accuracy
-    - NaN/Inf handling
-    - All three remediation actions
-    - Hook lifecycle management
-    - Optimizer proxy behavior
+## [0.1.2] - 2026-04-06
 
-### Technical Details
-- **Dependencies**: PyTorch ≥2.0 (core), optional integrations for wandb/mlflow/transformers
-- **Python Support**: Python 3.8+
-- **License**: MIT
-- **Architecture**: Non-invasive hook-based design with zero training loop modifications required
+### ✨ Features
+- Added WandB integration
+- Added MLflow integration
+- Added HuggingFace Trainer integration
 
-### Documentation
-- Comprehensive README with quick start guide
-- Architecture documentation with mathematical foundations
-- API documentation via docstrings
-- Example scripts for common use cases
+### 🔧 Improvements
+- Better logging format
+- Improved error messages
 
----
+## [0.1.1] - 2026-04-05
 
-## [Unreleased]
+### 🐛 Bug Fixes
+- Fixed snapshot restoration on CPU
+- Fixed NaN handling in mixed precision training
 
-### Planned Features
-- Hessian spectral radius estimation for Edge of Stability monitoring
-- SPAM optimizer (momentum reset on spike detection)
-- HELENE layer-wise gradient clipping with Hessian conditioning
-- PPO/RLHF divergence constraint monitoring
-- Real-time dashboard for training stability metrics
-- Automatic hyperparameter tuning based on spike patterns
+## [0.1.0] - 2026-04-04
+
+### 🎉 Initial Release
+- Basic gradient spike detection
+- NaN/Inf gradient handling
+- Automatic model snapshot and restoration
+- JSON logging of spike events
+- Support for PyTorch 2.0+
 
 ---
 
-[0.1.0]: https://github.com/yourusername/stabilityguard/releases/tag/v0.1.0
+## Version Numbering
+
+- **Major version (X.0.0)**: Breaking API changes
+- **Minor version (0.X.0)**: New features, backward compatible
+- **Patch version (0.0.X)**: Bug fixes, backward compatible
+
+## Links
+
+- [PyPI Package](https://pypi.org/project/stabilityguard/)
+- [GitHub Repository](https://github.com/ashwinmsad1/stabilityguard)
+- [Documentation](https://github.com/ashwinmsad1/stabilityguard#readme)

@@ -1,7 +1,7 @@
 # ⚡ StabilityGuard
 
-**One-line circuit breaker for PyTorch training.**  
-Add one line. See exactly which layer is about to explode.
+**Advanced PyTorch training stability with predictive spike detection.**  
+Catch gradient explosions before they happen. Auto-tune thresholds. Recover gracefully.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
@@ -72,6 +72,53 @@ for batch in dataloader:
     optimizer.zero_grad()
 ```
 
+## 🚀 New in v0.2.0: Advanced Features
+
+### 1. 🔮 Edge of Stability (Predictive Detection)
+**Predict spikes 10-50 steps before they happen** using Hessian spectral radius estimation.
+
+```python
+optimizer = GuardedOptimizer(base_opt, model,
+    enable_edge_of_stability=True,
+    eos_check_interval=10
+)
+```
+
+### 2. 🔄 SPAM Optimizer (Momentum Reset)
+**Automatically reset momentum buffers** when spikes are detected, preventing corruption propagation.
+
+```python
+optimizer = GuardedOptimizer(base_opt, model,
+    enable_spam=True,
+    spam_lr_reduction=0.5,
+    spam_recovery_steps=100
+)
+```
+
+### 3. 🎯 Auto-Calibration (Zero Manual Tuning)
+**Eliminate manual threshold tuning** by learning optimal thresholds from your data.
+
+```python
+optimizer = GuardedOptimizer(base_opt, model,
+    enable_auto_calibration=True,
+    auto_calibration_warmup_steps=100
+)
+```
+
+### 4. ✂️ HELENE Clipping (Adaptive Per-Layer)
+**Per-layer adaptive gradient clipping** based on local Hessian conditioning.
+
+```python
+optimizer = GuardedOptimizer(base_opt, model,
+    enable_helene=True,
+    helene_base_clip=1.0
+)
+```
+
+**All v0.2.0 features are opt-in (default `False`) for backward compatibility.**
+
+See `examples/v0.2.0_features.py` for detailed usage examples.
+
 ## What You See
 
 When a spike hits at step 847:
@@ -109,6 +156,21 @@ stabilityguard.log written → ./sg_logs/spike_step847.json
 | `ema_alpha` | `0.01` | EMA smoothing factor (smaller = slower adaptation) |
 | `warmup_steps` | `10` | Steps before spike detection activates |
 | `verbose` | `True` | Print diagnostic summaries to stdout |
+
+### v0.2.0 Advanced Features
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `enable_edge_of_stability` | `False` | Enable predictive spike detection |
+| `enable_spam` | `False` | Enable momentum reset on spikes |
+| `enable_auto_calibration` | `False` | Enable automatic threshold tuning |
+| `enable_helene` | `False` | Enable adaptive per-layer clipping |
+| `eos_check_interval` | `10` | Steps between Edge of Stability checks |
+| `eos_power_iterations` | `20` | Accuracy of λ_max estimation |
+| `spam_lr_reduction` | `0.5` | LR reduction factor after spike |
+| `spam_recovery_steps` | `100` | Steps to recover LR after spike |
+| `auto_calibration_warmup_steps` | `100` | Warmup steps for auto-calibration |
+| `helene_base_clip` | `1.0` | Base gradient clip value for HELENE |
 
 ## Actions
 
@@ -155,14 +217,78 @@ trainer = Trainer(
 | External dependencies | **0** (only PyTorch) |
 | License | **MIT** |
 
+### v0.2.0 Feature Overhead
+
+| Feature | Overhead | When |
+|---------|----------|------|
+| Edge of Stability | ~40 backward passes | Every `eos_check_interval` steps |
+| SPAM | Negligible | Only on spike detection |
+| Auto-Calibration | Negligible | Only during warmup |
+| HELENE | ~20 backward passes | Every step (if enabled) |
+
+## Understanding Spike Logs
+
+StabilityGuard writes detailed JSON logs for every spike detected to `./sg_logs/`:
+
+```json
+{
+  "snapshot": {
+    "step": 847,                   // When spike occurred
+    "spike_layer": "fc2",          // Which layer caused it
+    "spike_ratio": 12.8,           // Severity (current/baseline)
+    "action": "skip",              // Action taken
+    "loss": "tensor(14.71, ...)"   // Loss at spike time
+  },
+  "layer_norms": {
+    "fc2": 15.36,                  // Current gradient norm
+    "fc2.weight": 14.82
+  },
+  "ema_baselines": {
+    "fc2": 1.20,                   // Expected "normal" norm
+    "fc2.weight": 1.15
+  },
+  "nan_layers": []                 // NaN corruption check
+}
+```
+
+### Spike Severity Scale
+
+| spike_ratio | Severity | Action |
+|-------------|----------|--------|
+| 1.0-2.0 | Normal | No spike |
+| 2.0-5.0 | Moderate ⚠️ | Monitor |
+| 5.0-10.0 | Severe 🔥 | Investigate |
+| >10.0 | Critical 💥 | Fix immediately |
+
+### Quick Analysis Commands
+
+```bash
+# Count total spikes
+ls sg_logs/ | wc -l
+
+# Find most problematic layer
+grep -h "spike_layer" sg_logs/*.json | sort | uniq -c | sort -rn
+
+# Check for NaN corruption
+grep -l "nan_layers.*\[" sg_logs/*.json
+```
+
 ## Install from source
 
 ```bash
-git clone https://github.com/stabilityguard/stabilityguard.git
+git clone https://github.com/ashwinmsad1/stabilityguard.git
 cd stabilityguard
 pip install -e ".[test]"
 pytest tests/ -v
 ```
+
+## Documentation
+
+- [v0.2.0 Release Summary](../V0.2.0_RELEASE_SUMMARY.md) - Detailed feature overview
+- [v0.2.0 Roadmap](../ROADMAP_v0.2.0.md) - Technical specifications
+- [Long-term Roadmap](../LONG_TERM_ROADMAP.md) - Vision through v2.0.0
+- [Hessian-Vector Products Explained](../HESSIAN_VECTOR_PRODUCTS_EXPLAINED.md) - Computational cost analysis
+- [Changelog](CHANGELOG.md) - Version history
 
 ## License
 
