@@ -148,8 +148,10 @@ trainer = Trainer(
 
 | Metric | Value |
 |--------|-------|
-| Per-step overhead (no spike) | **< 0.2ms** on A100 |
+| Per-step overhead (GPU) | **Low** (estimated 1-5% on modern GPUs) |
+| Per-step overhead (CPU) | **High** (~60%, not recommended for production) |
 | Per-step overhead (spike detected) | **~3ms** (includes JSON write) |
+| Recommended for | **GPU-based training** (production workloads) |
 | External dependencies | **0** (only PyTorch) |
 | License | **MIT** |
 

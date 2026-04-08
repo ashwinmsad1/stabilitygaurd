@@ -116,12 +116,19 @@ class SpikeDetector:
                 continue
 
             baseline = self._ema_baselines[layer_name]
-            if baseline < 1e-10:
-                # Baseline near zero — can't compute meaningful ratio
+            
+            # Skip if either norm or baseline is near zero
+            # This prevents false positives from zero/near-zero gradients
+            if norm < 1e-10 or baseline < 1e-10:
                 continue
 
             ratio = norm / baseline
-            if ratio > self.threshold and ratio > worst_ratio:
+            
+            # Only flag as spike if BOTH conditions are met:
+            # 1. Ratio exceeds threshold (relative spike)
+            # 2. Absolute norm is significant (> 0.01)
+            # This prevents false positives from tiny gradients with high ratios
+            if ratio > self.threshold and norm > 0.01 and ratio > worst_ratio:
                 worst_spike = SpikeInfo(
                     layer=layer_name,
                     current_norm=norm,
