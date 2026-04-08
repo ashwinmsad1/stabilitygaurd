@@ -11,7 +11,13 @@ Add one line. See exactly which layer is about to explode.
 
 ## The Problem
 
-Training large models? Gradient spikes and NaN explosions silently corrupt your model weights. You lose hours of GPU time, and the error message tells you nothing about *which layer* caused it.
+Large-scale neural network optimization exhibits stochastic gradient instabilities characterized by two failure modes: (1) **gradient magnitude spikes** where per-layer L2 norms exceed exponential moving average baselines by 10-1000×, and (2) **numerical overflow** resulting in IEEE 754 NaN/Inf propagation through the computational graph. These instabilities arise from the Edge of Stability phenomenon (Cohen et al., ICLR 2021), where training occurs at sharpness λ_max ≈ 2/η, making the loss landscape hypersensitive to perturbations in parameter space.
+
+The failure mechanism proceeds as follows: A gradient spike at step t corrupts the optimizer state (momentum buffers, second-moment estimates) and parameter tensors θ_t. Subsequent backward passes propagate NaN values through autograd, contaminating all downstream gradients. By the time PyTorch's loss computation detects the anomaly—typically 5-50 steps post-corruption—the model checkpoint is irrecoverable, as the optimizer's internal state has been poisoned.
+
+Standard error handling provides only aggregate diagnostics: `RuntimeError: Function 'AddmmBackward0' returned nan values in its 0th output`. This lacks critical forensic information: (a) temporal localization of the initial spike, (b) layer-wise attribution of the instability source, (c) gradient norm trajectories preceding the failure, and (d) correlation with hyperparameters (learning rate, batch composition, loss landscape curvature).
+
+The computational cost is severe: For a 7B parameter LLM trained on 8×A100 GPUs at 150 TFLOPs/GPU, a single NaN explosion at 40% training completion wastes ~72 GPU-hours and requires rollback to the last stable checkpoint, often 1000-5000 steps prior. Without per-layer gradient monitoring and preemptive intervention, practitioners face a binary choice: accept the compute loss or implement ad-hoc gradient clipping that may suppress legitimate large gradients during critical learning phases.
 
 ## The Fix
 
