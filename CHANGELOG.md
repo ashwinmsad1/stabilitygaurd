@@ -5,6 +5,23 @@ All notable changes to StabilityGuard will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-04-08
+
+### Changed
+- **Simplified README problem statement** to accurately reflect v0.1 capabilities
+- Removed claims about Edge of Stability detection, Hessian estimation, and optimizer state corruption analysis (these are planned for future versions)
+- Focused on what v0.1 actually delivers: real-time gradient spike detection, per-layer attribution, and preemptive intervention
+
+### Documentation
+- Problem statement now honestly describes the gradient spike detection and NaN catching that v0.1 implements
+- Removed references to advanced features not yet implemented (λ_max tracking, curvature estimation, etc.)
+
+## [0.1.1] - 2026-04-08
+
+### Changed
+- Updated README with more detailed technical problem statement
+- Version bump for PyPI package update
+
 ## [0.1.0] - 2026-04-08
 
 ### Added

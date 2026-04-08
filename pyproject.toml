@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stabilityguard"
-version = "0.1.1"
+version = "0.1.2"
 description = "One-line circuit breaker for PyTorch training — catches NaN gradients, logs spikes, prevents model corruption."
 readme = "README.md"
 license = {text = "MIT"}
