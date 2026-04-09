@@ -68,12 +68,12 @@ class MiniLlama(nn.Module):
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # ━━━ Model ━━━
+    # Model
     model = MiniLlama(vocab_size=2000, d_model=256, n_layers=6).to(device)
     param_count = sum(p.numel() for p in model.parameters()) / 1e6
     print(f"MiniLlama: {param_count:.1f}M parameters")
 
-    # ━━━ Optimizer with rollback protection ━━━
+    # Optimizer with rollback protection
     base_opt = AdamW(model.parameters(), lr=2e-5, weight_decay=0.01)
     optimizer = GuardedOptimizer(
         base_opt,
@@ -84,7 +84,7 @@ def main():
         warmup_steps=5,
     )
 
-    # ━━━ Synthetic SFT training loop ━━━
+    # Synthetic SFT training loop
     criterion = nn.CrossEntropyLoss()
 
     for step in range(100):
@@ -102,7 +102,7 @@ def main():
         if step % 25 == 0:
             print(f"[SFT] Step {step}: loss={loss.item():.4f}")
 
-    print(f"\n✓ Fine-tuning complete — {optimizer.total_spikes} spikes, "
+    print(f"\nFine-tuning complete - {optimizer.total_spikes} spikes, "
           f"{optimizer.total_skips} rollbacks")
     optimizer.close()
 

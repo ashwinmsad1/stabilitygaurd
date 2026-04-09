@@ -15,7 +15,7 @@ from torch.optim import AdamW
 from stabilityguard import GuardedOptimizer
 
 
-# ━━━ Simple Transformer Block (GPT-2 style) ━━━
+# Simple Transformer Block (GPT-2 style)
 class TransformerBlock(nn.Module):
     def __init__(self, d_model=256, nhead=4, dim_ff=512):
         super().__init__()
@@ -58,15 +58,15 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Training on {device}")
 
-    # ━━━ Model setup ━━━
+    # Model setup
     model = MiniGPT(vocab_size=1000, d_model=256, n_layers=4).to(device)
     param_count = sum(p.numel() for p in model.parameters()) / 1e6
     print(f"Model parameters: {param_count:.1f}M")
 
-    # ━━━ Standard optimizer ━━━
+    # Standard optimizer
     base_opt = AdamW(model.parameters(), lr=3e-4, weight_decay=0.01)
 
-    # ━━━ Wrap with StabilityGuard (the one-line change) ━━━
+    # Wrap with StabilityGuard (the one-line change)
     optimizer = GuardedOptimizer(
         base_opt,
         model,
@@ -75,7 +75,7 @@ def main():
         log_every=20,            # summary every 20 steps
     )
 
-    # ━━━ Training loop ━━━
+    # Training loop
     criterion = nn.CrossEntropyLoss()
 
     for step in range(200):
@@ -97,7 +97,7 @@ def main():
         if step % 20 == 0:
             print(f"Step {step}: loss={loss.item():.4f}")
 
-    print(f"\n✓ Training complete — {optimizer.total_spikes} spikes detected, "
+    print(f"\nTraining complete - {optimizer.total_spikes} spikes detected, "
           f"{optimizer.total_skips} steps skipped")
     optimizer.close()
 

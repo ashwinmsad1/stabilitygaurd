@@ -159,7 +159,7 @@ class GuardedOptimizer:
                 verbose=verbose,
             )
             if verbose:
-                logger.info("✅ Edge of Stability detection enabled")
+                logger.info("Edge of Stability detection enabled")
         
         if enable_spam:
             self._spam_optimizer = SPAMOptimizer(
@@ -169,7 +169,7 @@ class GuardedOptimizer:
                 verbose=verbose,
             )
             if verbose:
-                logger.info("✅ SPAM momentum reset enabled")
+                logger.info("SPAM momentum reset enabled")
         
         if enable_helene:
             self._helene_clipper = HELENEClipper(
@@ -179,7 +179,7 @@ class GuardedOptimizer:
                 verbose=verbose,
             )
             if verbose:
-                logger.info("✅ HELENE adaptive clipping enabled")
+                logger.info("HELENE adaptive clipping enabled")
         
         if auto_calibrate:
             self._auto_calibrator = AutoCalibrator(
@@ -188,7 +188,7 @@ class GuardedOptimizer:
                 verbose=verbose,
             )
             if verbose:
-                logger.info("✅ Auto-calibration enabled")
+                logger.info("Auto-calibration enabled")
 
     def step(self, closure=None, loss: Optional[float] = None):
         """Guarded optimizer step.
@@ -226,11 +226,17 @@ class GuardedOptimizer:
         layer_norms, nan_layers = self._hook_manager.collect()
 
         # 1b. Direct param.grad scan — catches NaN/Inf injected after backward()
-        #     This complements hook-based detection (hooks fire during backward,
-        #     but gradients can be modified afterwards)
+        #     This complements hook-based detection for two reasons:
+        #     a) Hooks fire during backward, but gradients can be modified afterwards
+        #     b) Some parameters might not have hooks (e.g., if added dynamically)
+        #
+        #     Note: This adds overhead but is necessary for complete coverage.
+        #     For performance-critical applications, consider disabling if you're
+        #     certain no post-backward gradient modifications occur.
         for name, param in self._model.named_parameters():
             if param.grad is not None:
                 grad = param.grad
+                # Check for NaN/Inf that might have been introduced after hooks
                 if not torch.isfinite(grad).all():
                     nan_layers.add(name)
                     finite_mask = torch.isfinite(grad)
@@ -241,6 +247,7 @@ class GuardedOptimizer:
                     layer_norms[name] = norm
                 elif name not in layer_norms:
                     # Add param-level norm if not already captured by hooks
+                    # This handles parameters that might not have hooks attached
                     layer_norms[name] = grad.float().norm().item()
         
         # v0.2.0: Auto-calibration sample collection (during warmup)
@@ -251,7 +258,7 @@ class GuardedOptimizer:
                 new_threshold = self._auto_calibrator.get_threshold()
                 self._spike_detector.threshold = new_threshold
                 if self._verbose:
-                    logger.info(f"✅ Threshold auto-calibrated to {new_threshold:.2f}")
+                    logger.info(f"Threshold auto-calibrated to {new_threshold:.2f}")
 
         # 2. Run spike detection
         spike_detected, spike_info, ema_baselines = self._spike_detector.check(

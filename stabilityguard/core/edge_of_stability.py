@@ -15,6 +15,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Constants for numerical stability
+EPSILON_HV_NORM = 1e-8  # Minimum Hessian-vector product norm
+
 
 class EdgeOfStabilityDetector:
     """
@@ -132,9 +135,12 @@ class EdgeOfStabilityDetector:
             # Normalize: v = H @ v / ||H @ v||
             hv_norm = torch.sqrt(sum(torch.sum(hvi ** 2) for hvi in hv))
             
-            if hv_norm < 1e-10:
+            if hv_norm < EPSILON_HV_NORM:
                 # Avoid division by zero
-                logger.warning("Hessian-vector product norm too small")
+                logger.warning(
+                    f"Hessian-vector product norm too small: {hv_norm:.2e}. "
+                    "This may indicate numerical instability or flat loss landscape."
+                )
                 return 0.0
             
             v = [hvi / hv_norm for hvi in hv]
@@ -220,17 +226,35 @@ class EdgeOfStabilityDetector:
             
             if is_unstable and self.verbose:
                 logger.warning(
-                    f"⚠️  EDGE OF STABILITY WARNING @ step {step}\n"
-                    f"   λ_max = {lambda_max:.6f}\n"
+                    f"EDGE OF STABILITY WARNING @ step {step}\n"
+                    f"   lambda_max = {lambda_max:.6f}\n"
                     f"   Sharpness = {sharpness:.4f} (threshold: {self.stability_threshold})\n"
                     f"   Recommendation: Reduce learning rate to {learning_rate * 0.5:.2e}"
                 )
             
             return lambda_max, sharpness, is_unstable
             
-        except Exception as e:
-            logger.error(f"Error estimating λ_max: {e}")
+        except RuntimeError as e:
+            # Handle CUDA OOM, autograd errors, etc.
+            if "out of memory" in str(e).lower():
+                logger.error(
+                    f"CUDA out of memory during λ_max estimation at step {step}. "
+                    "Consider reducing power_iterations or estimation_frequency."
+                )
+            else:
+                logger.error(f"Runtime error estimating λ_max: {e}", exc_info=True)
             return None, None, False
+        except ValueError as e:
+            logger.error(f"Value error in λ_max estimation: {e}", exc_info=True)
+            return None, None, False
+        except Exception as e:
+            # Unexpected errors should be logged with full traceback
+            logger.critical(
+                f"Unexpected error in edge detection at step {step}: {e}",
+                exc_info=True
+            )
+            # Re-raise unexpected errors for debugging
+            raise
     
     def get_statistics(self) -> Dict[str, Any]:
         """

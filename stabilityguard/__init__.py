@@ -1,9 +1,13 @@
 """
-StabilityGuard — One-line circuit breaker for PyTorch training.
+StabilityGuard — Comprehensive PyTorch training stability platform.
 
-Add one line. See exactly which layer is about to explode.
+v0.3.0 Features:
+- RLHF/PPO stability monitoring
+- Distributed training support (DDP, FSDP, DeepSpeed)
+- Mixed precision stability (FP16/BF16/FP8)
+- Advanced logging and diagnostics
 
-Usage:
+Basic Usage:
     from stabilityguard import GuardedOptimizer
 
     base_opt = AdamW(model.parameters(), lr=2e-4)
@@ -12,9 +16,15 @@ Usage:
         nan_action="skip",
         log_every=50,
     )
+
+Advanced Usage:
+    from stabilityguard.rlhf import RLHFGuard
+    from stabilityguard.distributed import DistributedGuardedOptimizer
+    from stabilityguard.precision import MixedPrecisionGuard
+    from stabilityguard.logging import AdvancedLogger
 """
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 from stabilityguard.core.guarded_optimizer import GuardedOptimizer
 from stabilityguard.core.snapshot import GradientSnapshot, SpikeReport

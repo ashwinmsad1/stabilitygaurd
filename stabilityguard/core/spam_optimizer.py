@@ -37,12 +37,15 @@ class SPAMOptimizer:
     Args:
         optimizer: Base PyTorch optimizer to wrap
         reset_strategy: How to reset momentum
-            - "zero": Set all momentum buffers to zero (default)
-            - "ema": Exponentially decay momentum buffers
-            - "partial": Reset only the spiking layer's momentum
+            - "zero": Set all momentum buffers to zero (default, recommended)
+            - "ema": Exponentially decay momentum buffers (gentler)
+            - "partial": Reset only the spiking layer's momentum (NOT YET IMPLEMENTED)
         lr_reduction_factor: Temporarily reduce LR by this factor after spike (default: 1.0, no reduction)
         lr_recovery_steps: Steps to recover original LR (default: 10)
         verbose: Print momentum reset notifications (default: True)
+    
+    Note: The "partial" reset strategy is not yet fully implemented and will
+    fall back to "zero" strategy. Use "zero" or "ema" for production code.
     
     Example:
         >>> base_opt = torch.optim.AdamW(model.parameters(), lr=1e-4)
@@ -66,6 +69,31 @@ class SPAMOptimizer:
         lr_recovery_steps: int = 10,
         verbose: bool = True
     ):
+        # Input validation
+        valid_strategies = ["zero", "ema", "partial"]
+        if reset_strategy not in valid_strategies:
+            raise ValueError(
+                f"Invalid reset_strategy: {reset_strategy}. "
+                f"Must be one of {valid_strategies}"
+            )
+        
+        if reset_strategy == "partial":
+            logger.warning(
+                "reset_strategy='partial' is not yet fully implemented. "
+                "Falling back to 'zero' strategy. "
+                "Use 'zero' or 'ema' for production code."
+            )
+        
+        if lr_reduction_factor < 0 or lr_reduction_factor > 1:
+            raise ValueError(
+                f"lr_reduction_factor must be in [0, 1], got {lr_reduction_factor}"
+            )
+        
+        if lr_recovery_steps <= 0:
+            raise ValueError(
+                f"lr_recovery_steps must be positive, got {lr_recovery_steps}"
+            )
+        
         self.optimizer = optimizer
         self.reset_strategy = reset_strategy
         self.lr_reduction_factor = lr_reduction_factor
@@ -127,7 +155,7 @@ class SPAMOptimizer:
         
         if self.verbose:
             logger.info(
-                f"🔄 SPAM: Momentum reset @ step {step}\n"
+                f"SPAM: Momentum reset @ step {step}\n"
                 f"   Buffers reset: {stats['buffers_reset']}\n"
                 f"   Strategy: {self.reset_strategy}\n"
                 f"   LR reduced: {stats['lr_reduced']}"
@@ -222,18 +250,38 @@ class SPAMOptimizer:
         Reset momentum only for parameters in the specified layer.
         
         This is more surgical than resetting all momentum, but requires
-        knowing which layer caused the spike.
+        knowing which layer caused the spike and access to the model.
         
         Args:
             layer_name: Name of the layer to reset (e.g., "transformer.h.11.mlp")
             
         Returns:
             Number of buffers reset
+            
+        Note: This feature is not yet fully implemented. To implement:
+        1. Pass model reference to SPAMOptimizer.__init__()
+        2. Map layer_name to specific parameters
+        3. Reset only those parameters' momentum buffers
+        
+        For now, falls back to full momentum reset.
         """
         # This requires access to the model to map layer names to parameters
-        # For now, we'll just reset all momentum (same as "zero" strategy)
-        # TODO: Implement layer-specific reset when model is available
-        logger.warning("Partial reset not yet implemented, falling back to full reset")
+        # Implementation plan:
+        # 1. Store model reference in __init__
+        # 2. Use model.named_parameters() to find params matching layer_name
+        # 3. Reset momentum only for those specific parameters
+        # 4. Example:
+        #    for name, param in self.model.named_parameters():
+        #        if layer_name in name and param in self.optimizer.state:
+        #            state = self.optimizer.state[param]
+        #            if 'exp_avg' in state:
+        #                state['exp_avg'].zero_()
+        
+        logger.warning(
+            f"Partial momentum reset for layer '{layer_name}' not yet implemented. "
+            "Falling back to full momentum reset. "
+            "To use layer-specific reset, please contribute an implementation."
+        )
         return self._reset_all_momentum()
     
     def _reduce_learning_rate(self):

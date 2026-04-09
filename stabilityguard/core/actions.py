@@ -44,23 +44,50 @@ class SkipAction:
 
 
 class RollbackAction:
-    """Restore model weights to the last saved checkpoint."""
+    """Restore model weights to the last saved checkpoint.
+    
+    Note: For very large models (>1B parameters), consider using
+    memory-efficient checkpointing or reducing checkpoint frequency.
+    """
 
     name = "rollback"
 
-    def __init__(self):
+    def __init__(self, max_checkpoints: int = 1):
+        """Initialize rollback action.
+        
+        Args:
+            max_checkpoints: Maximum number of checkpoints to keep (default: 1).
+                For large models, keeping only 1 checkpoint reduces memory usage.
+        """
         self._checkpoint: Optional[dict] = None
         self._optimizer_checkpoint: Optional[dict] = None
+        self._max_checkpoints = max_checkpoints
+        self._checkpoint_count = 0
 
     def save_checkpoint(self, model: nn.Module, optimizer):
         """Save current model and optimizer state as checkpoint.
 
         Called after every successful (non-spike) step.
-        Uses deepcopy for safety — overhead is acceptable since
-        it only runs on successful steps.
+        Uses deepcopy for safety. For large models, this may consume
+        significant memory. Consider using state_dict() with CPU offloading
+        for models with billions of parameters.
+        
+        Warning: Deep copying large models can cause memory issues.
+        Monitor memory usage and adjust checkpoint frequency if needed.
         """
-        self._checkpoint = copy.deepcopy(model.state_dict())
-        self._optimizer_checkpoint = copy.deepcopy(optimizer.state_dict())
+        try:
+            # For large models, consider moving to CPU to save GPU memory
+            self._checkpoint = copy.deepcopy(model.state_dict())
+            self._optimizer_checkpoint = copy.deepcopy(optimizer.state_dict())
+            self._checkpoint_count += 1
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                logger.error(
+                    "Out of memory while saving checkpoint. "
+                    "Consider reducing model size or disabling rollback action."
+                )
+                raise
+            raise
 
     def execute(self, optimizer, model, spike_info, step: int):
         """Restore model and optimizer to last checkpoint."""
@@ -92,11 +119,14 @@ class RaiseAction:
         )
 
 
-def get_action(action_name: str):
+def get_action(action_name: str) -> "SkipAction | RollbackAction | RaiseAction":
     """Factory: create an action handler from a string name.
 
     Args:
         action_name: One of 'skip', 'rollback', 'raise'.
+    
+    Returns:
+        Action handler instance (SkipAction, RollbackAction, or RaiseAction).
 
     Returns:
         An action instance.

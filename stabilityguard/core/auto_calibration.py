@@ -71,6 +71,7 @@ class AutoCalibrator:
         self.samples: List[float] = []
         self.step_count = 0
         self.is_calibrated = False
+        self.calibration_failed = False  # Track if calibration failed
         
         # Fitted parameters
         self.threshold = None
@@ -133,7 +134,7 @@ class AutoCalibrator:
             
             if self.verbose:
                 logger.info(
-                    f"✅ AUTO-CALIBRATION COMPLETE\n"
+                    f"AUTO-CALIBRATION COMPLETE\n"
                     f"   Samples collected: {len(self.samples)}\n"
                     f"   Distribution: {self.distribution}\n"
                     f"   Parameters: {self.distribution_params}\n"
@@ -142,9 +143,19 @@ class AutoCalibrator:
                 )
         
         except Exception as e:
-            logger.error(f"Calibration failed: {e}, using default threshold")
+            logger.error(
+                f"Auto-calibration FAILED: {e}. "
+                f"Falling back to default threshold of 10.0. "
+                f"This may result in suboptimal spike detection.",
+                exc_info=True
+            )
+            logger.warning(
+                "CALIBRATION FAILURE: Using default threshold. "
+                "Consider manually tuning spike_threshold parameter."
+            )
             self.threshold = 10.0
             self.is_calibrated = True
+            self.calibration_failed = True
     
     def _fit_lognormal(self, samples: np.ndarray) -> Tuple[float, Dict[str, float]]:
         """
@@ -320,6 +331,7 @@ class AutoCalibrator:
         Returns:
             Dictionary with statistics:
             - is_calibrated: Whether calibration is complete
+            - calibration_failed: Whether calibration failed
             - samples_collected: Number of samples collected
             - threshold: Calibrated threshold
             - distribution: Distribution type
@@ -327,6 +339,7 @@ class AutoCalibrator:
         """
         return {
             "is_calibrated": self.is_calibrated,
+            "calibration_failed": self.calibration_failed,
             "samples_collected": len(self.samples),
             "threshold": self.threshold,
             "distribution": self.distribution,

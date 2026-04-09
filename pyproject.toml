@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stabilityguard"
-version = "0.2.0"
-description = "Advanced PyTorch training stability — predictive spike detection, adaptive clipping, auto-calibration, and momentum reset."
+version = "0.3.0"
+description = "Advanced PyTorch training stability platform — RLHF monitoring, distributed training support, mixed precision stability, and comprehensive logging."
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"

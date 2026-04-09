@@ -75,10 +75,10 @@ class SpikeLogger:
 
         print(
             f"{_C.DIM}[StabilityGuard] "
-            f"step={step} │ "
-            f"grad_norm={global_norm:.4f} │ "
-            f"layers={num_layers} │ "
-            f"spikes={total_spikes} │ "
+            f"step={step} | "
+            f"grad_norm={global_norm:.4f} | "
+            f"layers={num_layers} | "
+            f"spikes={total_spikes} | "
             f"skipped={total_skips}"
             f"{_C.RESET}"
         )
@@ -108,7 +108,7 @@ class SpikeLogger:
 
         print(f"""
 {d}╔══════════════════════════════════════════════════════════════╗{x}
-{d}║{x}  {r}{b}⚠ STABILITYGUARD — SPIKE DETECTED @ step {step}{x}                {d}║{x}
+{d}║{x}  {r}{b}WARNING: STABILITYGUARD - SPIKE DETECTED @ step {step}{x}                {d}║{x}
 {d}╠══════════════════════════════════════════════════════════════╣{x}
 {d}║{x}  {g}Trigger layer  :{x} {layer}
 {d}║{x}  {g}Grad norm      :{x} {norm:.1f}  (baseline: {baseline:.1f}, ratio: {ratio_str})

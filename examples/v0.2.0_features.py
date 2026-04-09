@@ -18,7 +18,7 @@ from torch.optim import AdamW
 from stabilityguard import GuardedOptimizer
 
 
-# ━━━ Simple Model for Demo ━━━
+# Simple Model for Demo
 class DemoModel(nn.Module):
     def __init__(self):
         super().__init__()
@@ -41,7 +41,7 @@ def main():
     model = DemoModel()
     base_opt = AdamW(model.parameters(), lr=1e-3)
     
-    # ━━━ Example 1: All Features Enabled ━━━
+    # Example 1: All Features Enabled
     print("\n[Example 1] All v0.2.0 features enabled:")
     print("-" * 70)
     
@@ -53,7 +53,7 @@ def main():
         nan_action="skip",
         log_every=50,
         
-        # ✨ v0.2.0 Features (all enabled)
+        # v0.2.0 Features (all enabled)
         enable_edge_of_stability=True,     # Predictive detection
         enable_spam=True,                  # Momentum reset
         enable_auto_calibration=True,      # Auto-tune threshold
@@ -70,14 +70,14 @@ def main():
         verbose=True
     )
     
-    print("\n✅ GuardedOptimizer initialized with all v0.2.0 features!")
+    print("\nGuardedOptimizer initialized with all v0.2.0 features!")
     print("\nFeatures enabled:")
-    print("  🔮 Edge of Stability: Predicts spikes 10-50 steps ahead")
-    print("  🔄 SPAM Optimizer: Resets momentum on spike detection")
-    print("  🎯 Auto-Calibration: Learns optimal threshold automatically")
-    print("  ✂️ HELENE Clipping: Adaptive per-layer gradient clipping")
+    print("  Edge of Stability: Predicts spikes 10-50 steps ahead")
+    print("  SPAM Optimizer: Resets momentum on spike detection")
+    print("  Auto-Calibration: Learns optimal threshold automatically")
+    print("  HELENE Clipping: Adaptive per-layer gradient clipping")
     
-    # ━━━ Example 2: Edge of Stability Only ━━━
+    # Example 2: Edge of Stability Only
     print("\n\n[Example 2] Edge of Stability only (predictive detection):")
     print("-" * 70)
     
@@ -92,11 +92,11 @@ def main():
         verbose=False
     )
     
-    print("✅ Predictive spike detection enabled")
+    print("Predictive spike detection enabled")
     print("   Checks Hessian spectral radius every 10 steps")
     print("   Warns when λ_max × lr > 2 (approaching instability)")
     
-    # ━━━ Example 3: SPAM + Auto-Calibration ━━━
+    # Example 3: SPAM + Auto-Calibration
     print("\n\n[Example 3] SPAM + Auto-Calibration (production setup):")
     print("-" * 70)
     
@@ -113,12 +113,12 @@ def main():
         verbose=False
     )
     
-    print("✅ Production-ready configuration:")
-    print("   • Auto-calibration eliminates manual threshold tuning")
+    print("Production-ready configuration:")
+    print("   - Auto-calibration eliminates manual threshold tuning")
     print("   • SPAM resets momentum buffers on spike detection")
     print("   • Gradual LR recovery prevents secondary spikes")
     
-    # ━━━ Example 4: HELENE Only ━━━
+    # Example 4: HELENE Only
     print("\n\n[Example 4] HELENE Clipping only (adaptive per-layer):")
     print("-" * 70)
     
@@ -133,11 +133,11 @@ def main():
         verbose=False
     )
     
-    print("✅ Adaptive per-layer gradient clipping enabled")
+    print("Adaptive per-layer gradient clipping enabled")
     print("   Clip value = base_clip / sqrt(κ)")
     print("   Ill-conditioned layers get more aggressive clipping")
     
-    # ━━━ Training Loop Demo ━━━
+    # Training Loop Demo
     print("\n\n[Demo] Running 20 training steps with all features...")
     print("-" * 70)
     
@@ -160,10 +160,10 @@ def main():
         if step % 5 == 0:
             print(f"  Step {step:3d}: loss = {loss.item():.4f}")
     
-    print("\n✅ Training completed successfully!")
+    print("\nTraining completed successfully!")
     print("\nAll v0.2.0 features worked seamlessly together.")
-    
-    # ━━━ Summary ━━━
+
+    # Summary
     print("\n" + "=" * 70)
     print("SUMMARY")
     print("=" * 70)

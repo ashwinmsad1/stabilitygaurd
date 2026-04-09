@@ -72,7 +72,126 @@ for batch in dataloader:
     optimizer.zero_grad()
 ```
 
-## 🚀 New in v0.2.0: Advanced Features
+## 🚀 What's New in v0.3.0
+
+StabilityGuard v0.3.0 introduces **4 major feature categories** that transform it into a comprehensive training stability platform:
+
+### 1. 🤖 RLHF/PPO Stability Guard
+**Industry-first monitoring for Reinforcement Learning from Human Feedback training.**
+
+```python
+from stabilityguard.rlhf import RLHFGuard
+
+rlhf_guard = RLHFGuard(
+    model=policy_model,
+    ref_model=reference_model,
+    kl_threshold=0.1,           # KL divergence limit
+    reward_collapse_threshold=0.01,  # Entropy threshold
+    value_divergence_threshold=10.0  # Critic stability
+)
+
+# During PPO training
+rlhf_guard.check_step(
+    logits=policy_logits,
+    ref_logits=ref_logits,
+    rewards=rewards,
+    values=values,
+    old_logprobs=old_logprobs,
+    new_logprobs=new_logprobs,
+    step=step
+)
+```
+
+**Features:**
+- **KL Divergence Monitor**: Automatic penalty adjustment when policy drifts
+- **Reward Collapse Detector**: Identifies degenerate reward model behavior
+- **Value Divergence Monitor**: Tracks critic network stability
+- **PPO Ratio Monitor**: Analyzes policy update magnitudes
+
+### 2. 🌐 Distributed Training Support
+**Multi-GPU gradient spike detection with rank attribution.**
+
+```python
+from stabilityguard.distributed import DistributedGuardedOptimizer
+
+optimizer = DistributedGuardedOptimizer(
+    base_optimizer,
+    model,
+    spike_threshold=10.0,
+    backend="nccl"  # or "gloo"
+)
+
+# Automatically coordinates spike detection across all GPUs
+# Identifies which rank caused the spike
+```
+
+**Features:**
+- **Distributed Spike Detector**: All-reduce coordination across ranks
+- **FSDP Stability Guard**: Specialized monitoring for Fully Sharded Data Parallel
+- **DeepSpeed Stability Guard**: Support for ZeRO-1, ZeRO-2, ZeRO-3
+- **Rank Attribution**: Identifies which GPU caused instability
+
+### 3. 🎯 Mixed Precision Stability
+**Comprehensive FP16/BF16/FP8 training monitoring.**
+
+```python
+from stabilityguard.precision import MixedPrecisionGuard
+
+precision_guard = MixedPrecisionGuard(
+    model=model,
+    precision="fp16",  # or "bf16", "fp8"
+    initial_scale=2**16
+)
+
+# Scale loss
+scaled_loss = precision_guard.scale_loss(loss)
+scaled_loss.backward()
+
+# Check for issues and adjust scale
+precision_guard.update_scale(model, optimizer, step)
+```
+
+**Features:**
+- **Precision Monitor**: Overflow/underflow detection
+- **Adaptive Loss Scaler**: Stability-aware scaling
+- **Dynamic Range Tracking**: Real-time precision analysis
+- **Automatic Recommendations**: Actionable precision advice
+
+### 4. 📊 Advanced Logging System
+**Comprehensive training diagnostics beyond gradient monitoring.**
+
+```python
+from stabilityguard.logging import AdvancedLogger
+
+logger = AdvancedLogger(
+    log_dir="./logs",
+    enable_gradient_flow=True,
+    enable_activation_stats=True,
+    enable_weight_updates=True,
+    enable_checkpoint_scoring=True
+)
+
+# Log comprehensive statistics
+log_data = logger.log_step(
+    step=step,
+    loss=loss.item(),
+    model=model,
+    optimizer=optimizer
+)
+
+# Get checkpoint health score (0-100)
+score = logger.score_checkpoint("checkpoint.pt", training_history)
+```
+
+**Features:**
+- **Gradient Flow Tracker**: Per-layer gradient monitoring
+- **Activation Stats Logger**: Dead neuron detection
+- **Weight Update Tracker**: Parameter change analysis
+- **Checkpoint Health Scorer**: Stability-based checkpoint ranking
+
+---
+
+## 🔧 v0.2.0 Features (Still Available)
 
 ### 1. 🔮 Edge of Stability (Predictive Detection)
 **Predict spikes 10-50 steps before they happen** using Hessian spectral radius estimation.
@@ -115,9 +234,7 @@ optimizer = GuardedOptimizer(base_opt, model,
 )
 ```
 
-**All v0.2.0 features are opt-in (default `False`) for backward compatibility.**
-
-See `examples/v0.2.0_features.py` for detailed usage examples.
+**All features are opt-in (default `False`) for backward compatibility.**
 
 ## What You See
 
@@ -284,10 +401,17 @@ pytest tests/ -v
 
 ## Documentation
 
+### v0.3.0 Documentation
+- [v0.3.0 Implementation Complete](../V0.3.0_IMPLEMENTATION_COMPLETE.md) - Implementation summary
+- [v0.3.0 Roadmap](../ROADMAP_v0.3.0.md) - Technical specifications and architecture
+
+### v0.2.0 Documentation
 - [v0.2.0 Release Summary](../V0.2.0_RELEASE_SUMMARY.md) - Detailed feature overview
 - [v0.2.0 Roadmap](../ROADMAP_v0.2.0.md) - Technical specifications
-- [Long-term Roadmap](../LONG_TERM_ROADMAP.md) - Vision through v2.0.0
 - [Hessian-Vector Products Explained](../HESSIAN_VECTOR_PRODUCTS_EXPLAINED.md) - Computational cost analysis
+
+### General Documentation
+- [Long-term Roadmap](../LONG_TERM_ROADMAP.md) - Vision through v2.0.0
 - [Changelog](CHANGELOG.md) - Version history
 
 ## License

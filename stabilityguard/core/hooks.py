@@ -8,8 +8,9 @@ if a hook callback fails, training continues uninterrupted.
 
 import torch
 import torch.nn as nn
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, Callable, Any
 import logging
+import threading
 
 logger = logging.getLogger("stabilityguard.hooks")
 
@@ -30,6 +31,7 @@ class GradientHookManager:
         self._current_norms: Dict[str, float] = {}
         self._nan_layers: Set[str] = set()
         self._attached = False
+        self._lock = threading.Lock()  # Thread safety for collect()
 
     def attach(self, model: nn.Module, skip_containers: bool = True):
         """Register backward hooks on all modules in the model.
@@ -72,22 +74,32 @@ class GradientHookManager:
 
     def collect(self) -> tuple:
         """Collect gradient norms from the last backward pass.
+        
+        Thread-safe: Uses lock to prevent data corruption if hooks
+        fire during collection.
 
         Returns:
             Tuple of (layer_norms dict, nan_layers set). Clears internal
             buffers after collection.
         """
-        norms = dict(self._current_norms)
-        nan_layers = set(self._nan_layers)
-        self._current_norms.clear()
-        self._nan_layers.clear()
+        with self._lock:
+            norms = dict(self._current_norms)
+            nan_layers = set(self._nan_layers)
+            self._current_norms.clear()
+            self._nan_layers.clear()
         return norms, nan_layers
 
-    def _make_hook(self, name: str):
+    def _make_hook(self, name: str) -> Callable:
         """Create a backward hook closure for a named module.
 
         The hook computes the L2 norm of grad_output tensors.
         All errors are caught and logged to prevent training interruption.
+        
+        Args:
+            name: Name of the module to create hook for.
+            
+        Returns:
+            Hook function that can be registered with PyTorch.
         """
         manager = self
 
@@ -99,7 +111,8 @@ class GradientHookManager:
 
                     # Check for NaN/Inf first (cheap short-circuit)
                     if not torch.isfinite(grad).all():
-                        manager._nan_layers.add(name)
+                        with manager._lock:
+                            manager._nan_layers.add(name)
                         has_nan = torch.isnan(grad).any().item()
                         has_inf = torch.isinf(grad).any().item()
                         # Still compute norm for diagnostics (using finite values)
@@ -108,18 +121,20 @@ class GradientHookManager:
                             norm = finite_grad.float().norm().item()
                         else:
                             norm = float("inf")
-                        manager._current_norms[name] = norm
+                        with manager._lock:
+                            manager._current_norms[name] = norm
                         return
 
                     # Compute L2 norm
                     norm = grad.float().norm().item()
                     # If multiple grad_outputs, keep the max norm
-                    if name in manager._current_norms:
-                        manager._current_norms[name] = max(
-                            manager._current_norms[name], norm
-                        )
-                    else:
-                        manager._current_norms[name] = norm
+                    with manager._lock:
+                        if name in manager._current_norms:
+                            manager._current_norms[name] = max(
+                                manager._current_norms[name], norm
+                            )
+                        else:
+                            manager._current_norms[name] = norm
 
             except Exception as e:
                 # Non-blocking: log and continue, never halt training

@@ -178,11 +178,11 @@ def main():
     print("VERDICT")
     print("=" * 60)
     if overhead < 0.2:
-        print(f"✅ PASS: Overhead ({overhead:.3f} ms) is < 0.2 ms")
+        print(f"PASS: Overhead ({overhead:.3f} ms) is < 0.2 ms")
     elif overhead < 1.0:
-        print(f"⚠️  ACCEPTABLE: Overhead ({overhead:.3f} ms) is < 1.0 ms")
+        print(f"ACCEPTABLE: Overhead ({overhead:.3f} ms) is < 1.0 ms")
     else:
-        print(f"❌ FAIL: Overhead ({overhead:.3f} ms) is > 1.0 ms")
+        print(f"FAIL: Overhead ({overhead:.3f} ms) is > 1.0 ms")
     
     print("\nNote: Spike detection overhead (~3ms) only occurs when spikes are detected,")
     print("which should be rare in healthy training runs.")

@@ -69,6 +69,27 @@ class HELENEClipper:
         max_clip: float = 10.0,
         verbose: bool = False
     ):
+        # Input validation
+        if base_clip <= 0:
+            raise ValueError(f"base_clip must be positive, got {base_clip}")
+        
+        valid_methods = ["power_iteration", "gradient_variance", "fixed"]
+        if estimation_method not in valid_methods:
+            raise ValueError(
+                f"Invalid estimation_method: {estimation_method}. "
+                f"Must be one of {valid_methods}"
+            )
+        
+        if min_clip >= max_clip:
+            raise ValueError(
+                f"min_clip ({min_clip}) must be < max_clip ({max_clip})"
+            )
+        
+        if estimation_frequency <= 0:
+            raise ValueError(
+                f"estimation_frequency must be positive, got {estimation_frequency}"
+            )
+        
         self.model = model
         self.base_clip = base_clip
         self.estimation_method = estimation_method
@@ -107,14 +128,17 @@ class HELENEClipper:
             if not self._has_parameters(module):
                 continue
             
+            # Optimize: compute lower() once
+            name_lower = name.lower()
+            
             # Heuristic based on layer type
-            if 'attention' in name.lower() or 'attn' in name.lower():
+            if 'attention' in name_lower or 'attn' in name_lower:
                 # Attention layers: more aggressive clipping
                 self.layer_clips[name] = self.base_clip * 0.5
-            elif 'mlp' in name.lower() or 'fc' in name.lower() or 'linear' in name.lower():
+            elif 'mlp' in name_lower or 'fc' in name_lower or 'linear' in name_lower:
                 # MLP layers: moderate clipping
                 self.layer_clips[name] = self.base_clip
-            elif 'norm' in name.lower() or 'bn' in name.lower() or 'ln' in name.lower():
+            elif 'norm' in name_lower or 'bn' in name_lower or 'ln' in name_lower:
                 # Normalization layers: less aggressive clipping
                 self.layer_clips[name] = self.base_clip * 2.0
             else:
@@ -205,8 +229,8 @@ class HELENEClipper:
         
         if self.verbose and stats["layers_clipped"] > 0:
             logger.info(
-                f"✂️  HELENE: Clipped {stats['layers_clipped']} layers @ step {step}\n"
-                f"   Total norm: {stats['total_norm_before']:.4f} → {stats['total_norm_after']:.4f}\n"
+                f"HELENE: Clipped {stats['layers_clipped']} layers @ step {step}\n"
+                f"   Total norm: {stats['total_norm_before']:.4f} -> {stats['total_norm_after']:.4f}\n"
                 f"   Max clip ratio: {stats['max_clip_ratio']:.2f}x"
             )
         
@@ -266,11 +290,25 @@ class HELENEClipper:
         
         This is more accurate but much slower than variance-based estimation.
         Only use if you need precise conditioning estimates.
+        
+        Note: This feature is not yet implemented. Using variance-based
+        estimation as fallback.
         """
         # TODO: Implement full Hessian-based conditioning estimation
         # This requires computing λ_max and λ_min for each layer
-        # For now, fall back to variance-based estimation
-        logger.warning("Hessian-based estimation not yet implemented, using variance")
+        # Implementation plan:
+        # 1. For each layer, extract Hessian submatrix
+        # 2. Use power iteration to find λ_max
+        # 3. Use inverse power iteration to find λ_min
+        # 4. Compute κ = λ_max / λ_min
+        # 5. Set clip = base_clip / sqrt(κ)
+        
+        logger.warning(
+            "Hessian-based conditioning estimation not yet implemented. "
+            "Falling back to gradient variance method. "
+            "To use this feature, please contribute an implementation or "
+            "use estimation_method='gradient_variance' instead."
+        )
         self._estimate_conditioning_from_variance()
     
     def get_clip_values(self) -> Dict[str, float]:

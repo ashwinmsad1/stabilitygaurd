@@ -10,6 +10,11 @@ import math
 from typing import Dict, Optional, Set, Tuple
 from dataclasses import dataclass
 
+# Constants for numerical stability
+EPSILON_NORM = 1e-8  # Minimum norm threshold to avoid division by near-zero
+EPSILON_BASELINE = 1e-8  # Minimum baseline threshold
+MIN_SIGNIFICANT_NORM = 0.01  # Minimum norm to consider for spike detection
+
 
 @dataclass
 class SpikeInfo:
@@ -119,16 +124,18 @@ class SpikeDetector:
             
             # Skip if either norm or baseline is near zero
             # This prevents false positives from zero/near-zero gradients
-            if norm < 1e-10 or baseline < 1e-10:
+            # and avoids division by very small numbers
+            if norm < EPSILON_NORM or baseline < EPSILON_BASELINE:
                 continue
 
-            ratio = norm / baseline
+            # Safe division with explicit check
+            ratio = norm / max(baseline, EPSILON_BASELINE)
             
             # Only flag as spike if BOTH conditions are met:
             # 1. Ratio exceeds threshold (relative spike)
-            # 2. Absolute norm is significant (> 0.01)
+            # 2. Absolute norm is significant (> MIN_SIGNIFICANT_NORM)
             # This prevents false positives from tiny gradients with high ratios
-            if ratio > self.threshold and norm > 0.01 and ratio > worst_ratio:
+            if ratio > self.threshold and norm > MIN_SIGNIFICANT_NORM and ratio > worst_ratio:
                 worst_spike = SpikeInfo(
                     layer=layer_name,
                     current_norm=norm,
