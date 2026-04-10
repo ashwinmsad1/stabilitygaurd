@@ -140,15 +140,15 @@ from stabilityguard.precision import MixedPrecisionGuard
 precision_guard = MixedPrecisionGuard(
     model=model,
     precision="fp16",  # or "bf16", "fp8"
-    initial_scale=2**16
+    init_scale=2**16
 )
 
 # Scale loss
 scaled_loss = precision_guard.scale_loss(loss)
 scaled_loss.backward()
 
-# Check for issues and adjust scale
-precision_guard.update_scale(model, optimizer, step)
+# Check for issues and update
+precision_guard.update()
 ```
 
 **Features:**
